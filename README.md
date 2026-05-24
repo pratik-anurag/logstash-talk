@@ -1,4 +1,4 @@
-# Logstash Is Not Free Compute - Reveal.js Talk
+# Logstash: The Cost of Every Event - Reveal.js Talk
 
 A 30-minute interactive reveal.js deck on Logstash performance gotchas, focused on demos and gradual complexity.
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logstash Is Not Free Compute</title>
+  <title>Logstash: The Cost of Every Event</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Source+Sans+3:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css" id="theme">
@@ -16,16 +16,17 @@
 
 <section data-background-gradient="linear-gradient(135deg, #f8fbff, #e6f4f1 55%, #fff7ed)">
   <p class="eyebrow">SRE-TOOLS</p>
-  <h1>Logstash - As we know it</h1>
-  <h3>From simple pipelines to production gotchas</h3>
+  <h1>Logstash: The Cost of Every Event</h1>
+  <h3>From simple pipelines to production bottlenecks</h3>
   <p class="muted">Pratik</p>
   <aside class="notes">
-    Open with: Raise your hand if you have ever fixed a slow logging pipeline by increasing heap or workers first.
+    Open with a show of hands: who has tried to fix a slow Logstash pipeline by increasing heap, workers, or batch size first?
+    Set the frame: this talk is not anti-Logstash. It is about treating every filter as code that runs for every event.
   </aside>
 </section>
 
 <section>
-  <h2>The Mystery</h2>
+  <h2>Delayed Logs</h2>
   <div class="question">Logs are delayed by 10 minutes. What knob do you turn first?</div>
   <ul>
     <li class="fragment">Increase Logstash heap?</li>
@@ -35,26 +36,30 @@
   </ul>
   <p class="fragment punch">Usually: measure the pipeline before turning knobs.</p>
   <aside class="notes">
-    Let audience vote. Then say most slowdowns are quiet architectural decisions, not one dramatic bug.
-    Performance loss usually comes from a few overlooked choices: too much work in Logstash filters, bad ingestion patterns, invisible backpressure, and schema/index issues downstream.
+    Let the room vote before revealing the last line.
+    The point is not that these knobs are bad. The point is that they are second-order until we know where time is being spent.
+    Slow pipelines usually come from filter cost, output pressure, queue behavior, or schema/indexing effects downstream.
   </aside>
 </section>
 
 <section>
-  <h2>Today's Rule</h2>
+  <h2>Working Principle</h2>
   <blockquote>Logstash filters are production compute, not glue code.</blockquote>
   <div class="two-col">
     <div>
-      <h4>Cheap-ish</h4>
-      <p>Normalize at source, deterministic parsing, shallow mutations.</p>
+      <h4>Usually cheaper</h4>
+      <p>Normalize at source, parse repeated shapes, keep mutations shallow.</p>
     </div>
     <div>
-      <h4>Expensive fast</h4>
-      <p>Regex everywhere, Ruby filters, dynamic fields, external lookups.</p>
+      <h4>Cost grows quickly</h4>
+      <p>Regex-heavy parsing, Ruby filters, high-cardinality field names, external lookups.</p>
     </div>
   </div>
-  <aside class="notes">Logstash as a "production compute" or "compute engine" means leveraging its processing capabilities to ingest, 
-    parse, enrich, and transform massive streams of raw data in live, production environments before delivering them to downstream storage or analytics platforms</aside>
+  <aside class="notes">
+    Emphasize that Logstash is excellent at controlled ingestion and transformation.
+    The risk is putting unbounded or hard-to-predict work into the hot path and then scaling traffic into it.
+    Dynamic field names are especially dangerous downstream because they can create mapping/cardinality pressure even when Logstash itself is still moving events.
+  </aside>
 </section>
 
 <section>
@@ -72,6 +77,10 @@ output {
   # send events somewhere
 }</code></pre>
   <p class="fragment">Inputs collect. Outputs send. Filters spend CPU.</p>
+  <aside class="notes">
+    Keep the model simple: inputs decide what becomes an event, filters spend CPU per event, outputs introduce downstream coupling.
+    Most examples in the talk intentionally isolate filters so parser cost is easier to see.
+  </aside>
 </section>
 
 <section>
@@ -83,21 +92,25 @@ output {
       <div class="cost-axis-label cost-axis-bottom">Costliest</div>
     </div>
     <ol class="cost-ladder">
-      <li data-cost-title="Do Nothing" data-cost-snippet="snippets/12-cost-do-nothing.conf" data-cost-description="This is the floor. Logstash accepts an event and forwards it with almost no transformation work in the hot path.">Do nothing</li>
-      <li data-cost-title="Dissect" data-cost-snippet="snippets/13-cost-dissect.conf" data-cost-description="Dissect is cheap because it splits a deterministic string by delimiters instead of running a regex engine on every event.">dissect</li>
+      <li data-cost-title="Do Nothing" data-cost-snippet="snippets/12-cost-do-nothing.conf" data-cost-description="This is the floor. Logstash accepts an event and forwards it with almost no filter work in the hot path.">Do nothing</li>
+      <li data-cost-title="Dissect" data-cost-snippet="snippets/13-cost-dissect.conf" data-cost-description="Dissect is cheap when the text shape is reliably repeated because it tokenizes with delimiters instead of regular expressions.">dissect</li>
       <li data-cost-title="JSON" data-cost-snippet="snippets/14-cost-json.conf" data-cost-description="JSON parsing is still structured and predictable, but decoding every document costs more than simple delimiter-based tokenization.">json</li>
       <li data-cost-title="Mutate / Convert" data-cost-snippet="snippets/15-cost-mutate-convert.conf" data-cost-description="Field renames, conversions, and normalization are usually fine, but repeated per-event mutations still add measurable work.">mutate / convert</li>
       <li data-cost-title="Grok / Regex" data-cost-snippet="snippets/16-cost-grok.conf" data-cost-description="Grok buys flexibility, but regex matching is significantly heavier than deterministic parsing when volume rises.">grok / regex</li>
       <li data-cost-title="Condition-Heavy Branching" data-cost-snippet="snippets/17-cost-branching.conf" data-cost-description="Lots of branching multiplies the decision work on every event and makes pipelines harder to reason about and tune.">condition-heavy branching</li>
-      <li data-cost-title="Ruby" data-cost-snippet="snippets/18-cost-ruby.conf" data-cost-description="Ruby filters let you do almost anything, which is exactly why they are risky in a production event loop.">ruby</li>
-      <li data-cost-title="External Lookups In Hot Path" data-cost-snippet="snippets/19-cost-external-lookup.conf" data-cost-description="This is the top rung because each event can now depend on network or storage latency outside Logstash itself.">external lookups in hot path</li>
+      <li data-cost-title="Ruby" data-cost-snippet="snippets/18-cost-ruby.conf" data-cost-description="Ruby filters are powerful, but custom code in the event loop needs extra care for performance and thread safety.">ruby</li>
+      <li data-cost-title="External Lookups in Hot Path" data-cost-snippet="snippets/19-cost-external-lookup.conf" data-cost-description="This is the top rung because each event can now depend on service, network, or storage latency outside Logstash itself.">external lookups in hot path</li>
     </ol>
   </div>
   <p class="question">Where does your pipeline sit?</p>
+  <aside class="notes">
+    Invite people to click a rung and inspect the sample configuration.
+    Stress that this is a decision ladder, not a law of physics. A small regex on small volume is fine; repeated expensive work at high volume is the problem.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Demo 1: Hello Pipeline</h2>
+  <h2>Demo 1: Event Pass-Through</h2>
   <pre><code class="language-conf" data-line-numbers>input { stdin { } }
 
 filter {
@@ -108,7 +121,10 @@ filter {
 
 output { stdout { codec => rubydebug } }</code></pre>
   <pre><code class="language-bash">./commands/01-hello.sh</code></pre>
-  <aside class="notes">Paste: user=pratik action=login status=200. Ask: which field holds the original line? Answer: message.</aside>
+  <aside class="notes">
+    Run the command and point at the original line under the `message` field.
+    Explain that filters do not parse anything unless we explicitly tell them how.
+  </aside>
 </section>
 
 <section>
@@ -116,10 +132,14 @@ output { stdout { codec => rubydebug } }</code></pre>
   <pre><code class="language-text">2026-05-24T10:15:30Z api-01 INFO user=pratik action=login status=200 latency_ms=34</code></pre>
   <div class="question">Do we need regex for this?</div>
   <p class="fragment punch">No, if the format is deterministic.</p>
+  <aside class="notes">
+    This line has fixed separators and named key-value fragments.
+    That makes it a good candidate for Dissect or a source-side structured format.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Demo 2A: Parse with dissect</h2>
+  <h2>Demo 2A: Parse with Dissect</h2>
   <pre><code class="language-conf" data-line-numbers>filter {
   dissect {
     mapping => {
@@ -135,11 +155,14 @@ output { stdout { codec => rubydebug } }</code></pre>
   }
 }</code></pre>
   <pre><code class="language-bash">./commands/02-dissect.sh</code></pre>
-  <aside class="notes">Run pipelines/02-dissect.conf. Point out typed fields.</aside>
+  <aside class="notes">
+    Run the command and point out that `status` and `latency_ms` are converted after extraction.
+    Mention the key tradeoff: Dissect is fast for reliably repeated text and brittle when the shape varies.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Demo 2B: Parse with grok</h2>
+  <h2>Demo 2B: Parse with Grok</h2>
   <pre><code class="language-conf" data-line-numbers>filter {
   grok {
     match => {
@@ -148,28 +171,39 @@ output { stdout { codec => rubydebug } }</code></pre>
   }
 }</code></pre>
   <pre><code class="language-bash">./commands/03-grok.sh</code></pre>
-  <p class="question">Both work. Which one do you want at 50k events/sec?</p>
+  <p class="question">Both work. Which one should sit on the hot path?</p>
+  <aside class="notes">
+    Grok is the right tool when log shape varies or you need existing pattern libraries.
+    The point is to choose it deliberately, test it with representative volume, and avoid broad patterns where narrow ones would work.
+  </aside>
 </section>
 
 <section data-terminal>
   <h2>Performance Lab Setup</h2>
   <pre><code class="language-bash">./commands/04-generate-100k.sh</code></pre>
   <p class="muted">Goal: prove direction, not publish universal benchmark numbers.</p>
+  <aside class="notes">
+    Explain that laptop measurements are directional only.
+    We are controlling the input and output so the parser comparison is easier to reason about.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Benchmark Command</h2>
+  <h2>Parser Benchmark</h2>
   <pre><code class="language-bash">./commands/05-benchmark.sh</code></pre>
   <div class="metric-grid">
     <div><b>real</b><span>wall time</span></div>
     <div><b>user</b><span>CPU time</span></div>
     <div><b>sys</b><span>kernel time</span></div>
   </div>
-  <aside class="notes">Ask audience to predict which one uses more CPU. Repeat each run twice because JVM warmup matters.</aside>
+  <aside class="notes">
+    Ask the audience to predict relative order before running it.
+    Repeat runs when time allows because JVM warmup, filesystem cache, and background processes can make the first number noisy.
+  </aside>
 </section>
 
 <section>
-  <h2>Fill This Live</h2>
+  <h2>Live Results</h2>
   <table>
     <thead><tr><th>Pipeline</th><th>Events</th><th>Real time</th><th>Events/sec</th><th>Notes</th></tr></thead>
     <tbody>
@@ -178,7 +212,11 @@ output { stdout { codec => rubydebug } }</code></pre>
       <tr><td>expensive grok</td><td>100,000</td><td>____</td><td>____</td><td>GREEDYDATA</td></tr>
     </tbody>
   </table>
-  <p class="question">Is one laptop run enough for production sizing?</p>
+  <p class="question">Use the result as a signal, not capacity planning.</p>
+  <aside class="notes">
+    Fill the table only after running the benchmark.
+    Make clear that production sizing needs representative data, outputs, pipeline workers, heap, downstream behavior, and repeated runs.
+  </aside>
 </section>
 
 <section>
@@ -190,10 +228,14 @@ output { stdout { codec => rubydebug } }</code></pre>
     <li class="fragment">Elasticsearch output measures parser + network + bulk indexing.</li>
     <li class="fragment">JVM warmup makes first runs noisy.</li>
   </ul>
+  <aside class="notes">
+    The main correction here is to avoid false confidence.
+    A benchmark can accidentally measure stdout, disk, network, sincedb state, or Elasticsearch indexing instead of the parser you meant to compare.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Demo 3: Silent Failure</h2>
+  <h2>Demo 3: Parse Failures</h2>
   <pre><code class="language-text">bad log line with no structure</code></pre>
   <pre><code class="language-conf" data-line-numbers>if "_grokparsefailure" in [tags] {
   mutate { add_field => { "parse_status" => "failed" } }
@@ -201,11 +243,15 @@ output { stdout { codec => rubydebug } }</code></pre>
   mutate { add_field => { "parse_status" => "ok" } }
 }</code></pre>
   <pre><code class="language-bash">./commands/06-failure-tags.sh</code></pre>
-  <p class="punch">A failed parser is not always an outage. An unobserved failed parser is data corruption.</p>
+  <p class="punch">A parser failure is manageable. An unobserved parser failure is data loss in slow motion.</p>
+  <aside class="notes">
+    Grok adds `_grokparsefailure` by default when no pattern matches.
+    The operational move is to route, count, and sample failures instead of letting malformed events blend into normal data.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Audience Bug Hunt</h2>
+  <h2>Type Mismatch Check</h2>
   <pre><code class="language-conf" data-line-numbers>mutate {
   convert => { "status" => "integer" }
 }
@@ -214,11 +260,15 @@ if [status] == "200" {
   mutate { add_field => { "success" => true } }
 }</code></pre>
   <pre><code class="language-bash">./commands/07-type-bug.sh</code></pre>
-  <p class="fragment punch">Bug: <code>status</code> is now integer, but condition checks string.</p>
+  <p class="fragment punch">After conversion, compare <code>status</code> as a number.</p>
+  <aside class="notes">
+    Let the audience read it first.
+    The bug is small but common: conditions after `mutate { convert => ... }` should match the converted type.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Backpressure: The Warning Light</h2>
+  <h2>Backpressure Signals</h2>
   <pre><code class="language-yaml" data-line-numbers>queue.type: persisted
 path.queue: /var/lib/logstash/queue
 queue.max_bytes: 1gb</code></pre>
@@ -228,11 +278,15 @@ queue.max_bytes: 1gb</code></pre>
     <li><code>duration_in_millis</code></li>
     <li><code>queue_push_duration_in_millis</code></li>
   </ul>
-  <p class="muted">Persistent queue growth is not success. It means downstream cannot keep up.</p>
+  <p class="muted">Persistent queues buffer pressure. When they fill, inputs are back-pressured.</p>
+  <aside class="notes">
+    Persistent queues are useful for resiliency and temporary downstream stalls, but they are bounded.
+    If the queue keeps growing, the system is spending stored capacity. Once the limit is reached, Logstash applies back pressure to inputs that support it.
+  </aside>
 </section>
 
 <section data-terminal>
-  <h2>Final Debugging Game</h2>
+  <h2>Hot Path Review</h2>
   <pre><code class="language-conf" data-line-numbers>grok {
   match => {
     "message" => "%{GREEDYDATA:raw_prefix} user=%{DATA:user} action=%{DATA:action} payload=%{GREEDYDATA:payload}"
@@ -247,11 +301,15 @@ mutate {
   add_field => { "tenant_%{user}" => "active" }
 }</code></pre>
   <pre><code class="language-bash">./commands/09-final-debugging.sh</code></pre>
-  <p class="question">What scares you?</p>
+  <p class="question">Review cost, cardinality, and failure behavior before this ships.</p>
+  <aside class="notes">
+    Walk through three review points: `GREEDYDATA` at the front can do more work than needed, Ruby code must be safe and cheap under concurrency, and dynamic field names like `tenant_%{user}` can create mapping/cardinality pressure downstream.
+    Ask what should be moved to the source, narrowed, or quarantined.
+  </aside>
 </section>
 
 <section>
-  <h2>Mastery Checklist</h2>
+  <h2>Operating Checklist</h2>
   <ul>
     <li>Can you name the most expensive filter?</li>
     <li>Can malformed events be quarantined?</li>
@@ -259,12 +317,19 @@ mutate {
     <li>Can you explain queue growth?</li>
     <li>Can your schema survive arbitrary input?</li>
   </ul>
-  <blockquote>Do not ask “Can Logstash do this?” Ask “Should Logstash do this on every event, forever?”</blockquote>
+  <blockquote>Do not ask "Can Logstash do this?" Ask "Should this run on every event?"</blockquote>
+  <aside class="notes">
+    Close by shifting the habit from capability to cost.
+    The safest Logstash pipelines are explicit about parser choice, failure routing, throughput measurement, queue behavior, and schema boundaries.
+  </aside>
 </section>
 
 <section data-background-gradient="linear-gradient(135deg, #f8fbff, #e6f4f1 55%, #fff7ed)">
   <h1>Thank You</h1>
   <p class="muted">Open speaker notes with <kbd>S</kbd>. Navigate with arrows or space.</p>
+  <aside class="notes">
+    Leave time for questions about the demos or about applying the cost ladder to the audience's pipelines.
+  </aside>
 </section>
 
 </div>
