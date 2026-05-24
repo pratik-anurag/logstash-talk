@@ -682,6 +682,74 @@ body {
   font-size: .42em;
 }
 
+.benchmark-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr);
+  gap: 18px;
+  align-items: stretch;
+  width: min(1120px, 100%);
+  margin: 14px 0 16px;
+}
+
+.benchmark-panel > div {
+  min-width: 0;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(23, 32, 51, .12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(246, 250, 255, .84)),
+    radial-gradient(circle at 100% 0, rgba(29, 95, 209, .08), transparent 44%);
+  box-shadow: 0 16px 34px rgba(22, 47, 90, .11);
+}
+
+.panel-label {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--coral);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .36em;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.benchmark-panel pre {
+  max-width: none;
+  margin-bottom: 0;
+}
+
+.benchmark-flow {
+  display: grid;
+  gap: 12px;
+}
+
+.benchmark-flow div {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.benchmark-flow b {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(230, 240, 255, .9);
+  color: var(--blue);
+  font-family: "IBM Plex Mono", SFMono-Regular, monospace;
+  font-size: .44em;
+}
+
+.benchmark-flow span {
+  color: var(--ink);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .56em;
+  font-weight: 700;
+  line-height: 1.14;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1046,6 +1114,33 @@ kbd {
     flex-direction: column;
     gap: 2px;
     border-radius: 12px;
+  }
+
+  .benchmark-panel {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .benchmark-panel > div {
+    padding: 12px 14px;
+  }
+
+  .benchmark-flow {
+    gap: 8px;
+  }
+
+  .benchmark-flow div {
+    grid-template-columns: 34px 1fr;
+  }
+
+  .benchmark-flow b {
+    width: 30px;
+    height: 30px;
+    font-size: .34em;
+  }
+
+  .benchmark-flow span {
+    font-size: .46em;
   }
 
   .ops-checklist {

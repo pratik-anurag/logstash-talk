@@ -190,15 +190,27 @@ output { stdout { codec => rubydebug } }</code></pre>
 
 <section data-terminal>
   <h2>Parser Benchmark</h2>
-  <pre><code class="language-bash">./commands/05-benchmark.sh</code></pre>
-  <div class="metric-grid">
-    <div><b>real</b><span>wall time</span></div>
-    <div><b>user</b><span>CPU time</span></div>
-    <div><b>sys</b><span>kernel time</span></div>
+  <div class="benchmark-panel">
+    <div>
+      <span class="panel-label">Run</span>
+      <pre><code class="language-bash">./commands/05-benchmark.sh</code></pre>
+    </div>
+    <div class="benchmark-flow">
+      <div><b>1</b><span>Generate fixed input</span></div>
+      <div><b>2</b><span>Run each parser</span></div>
+      <div><b>3</b><span>Compare wall time</span></div>
+    </div>
   </div>
+  <div class="metric-grid">
+    <div><b>real</b><span>wall-clock time. Use this for live results.</span></div>
+    <div><b>user</b><span>CPU time spent in user space.</span></div>
+    <div><b>sys</b><span>kernel time for I/O and process work.</span></div>
+  </div>
+  <p class="muted">Click the command to inspect the script before running it.</p>
   <aside class="notes">
-    Ask the audience to predict relative order before running it.
-    Repeat runs when time allows because JVM warmup, filesystem cache, and background processes can make the first number noisy.
+    <p>Ask the audience to predict relative order before running it.</p>
+    <p>Click the command first so the room can see exactly what will run. The expanded modal loads `commands/05-benchmark.sh` over HTTP and shows the script contents.</p>
+    <p>Use `real` for the live results slide because it is wall-clock elapsed time. Repeat runs when time allows because JVM warmup, filesystem cache, and background processes can make the first number noisy.</p>
   </aside>
 </section>
 
@@ -530,6 +542,19 @@ function getExpandedCodeText(codeElement) {
   return codeElement.textContent;
 }
 
+function getCommandPath(codeElement) {
+  const command = getExpandedCodeText(codeElement).trim();
+  const match = command.match(/^\.\/(commands\/[\w.-]+\.sh)$/);
+  return match ? match[1] : null;
+}
+
+function highlightCodeModal() {
+  if (window.hljs) {
+    codeModalContent.removeAttribute('data-highlighted');
+    window.hljs.highlightElement(codeModalContent);
+  }
+}
+
 function openTerminal() {
   if (!terminalFrame.src) {
     terminalFrame.src = terminalUrl;
@@ -547,17 +572,33 @@ function closeTerminal() {
   restoreRevealKeyboard();
 }
 
-function openCodeModal(codeElement) {
-  codeModalContent.className = codeElement.className;
-  codeModalContent.textContent = getExpandedCodeText(codeElement);
-  if (window.hljs) {
-    codeModalContent.removeAttribute('data-highlighted');
-    window.hljs.highlightElement(codeModalContent);
-  }
+async function openCodeModal(codeElement) {
+  const commandPath = getCommandPath(codeElement);
+  codeModalContent.className = commandPath ? 'language-bash' : codeElement.className;
+  codeModalContent.textContent = commandPath ? 'Loading ' + commandPath + '...' : getExpandedCodeText(codeElement);
+  highlightCodeModal();
   disableRevealKeyboard();
   codeModal.hidden = false;
   document.body.classList.add('code-open');
   codeClose.focus();
+
+  if (!commandPath) {
+    return;
+  }
+
+  try {
+    const response = await fetch(commandPath);
+    if (!response.ok) {
+      throw new Error('Command request failed');
+    }
+
+    codeModalContent.textContent = await response.text();
+    highlightCodeModal();
+  } catch (error) {
+    codeModalContent.className = 'language-text';
+    codeModalContent.textContent = 'Unable to load ' + commandPath + '. Serve the deck over http://localhost:8000 so command files can be fetched.';
+    highlightCodeModal();
+  }
 }
 
 function closeCodeModal() {
