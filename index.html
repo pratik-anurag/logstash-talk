@@ -25,7 +25,7 @@
   </aside>
 </section>
 
-<section>
+<section class="focus-slide">
   <h2>Delayed Logs</h2>
   <div class="question">Logs are delayed by 10 minutes. What knob do you turn first?</div>
   <ul>
@@ -377,6 +377,12 @@ mutate {
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/zoom/zoom.js"></script>
 <script>
 Reveal.initialize({
+  width: 1600,
+  height: 900,
+  margin: 0.035,
+  minScale: 0.2,
+  maxScale: 1.0,
+  center: false,
   hash: true,
   slideNumber: 'c/t',
   transition: 'slide',
