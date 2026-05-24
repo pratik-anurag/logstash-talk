@@ -129,7 +129,7 @@ output { stdout { codec => rubydebug } }</code></pre>
 
 <section>
   <h2>Stable Log Shape</h2>
-  <pre><code class="language-text">2026-05-24T10:15:30Z api-01 INFO user=pratik action=login status=200 latency_ms=34</code></pre>
+  <pre><code class="language-conf" data-line-numbers>2026-05-24T10:15:30Z api-01 INFO user=pratik action=login status=200 latency_ms=34</code></pre>
   <div class="question">Do we need regex for this?</div>
   <p class="fragment punch">No, if the format is deterministic.</p>
   <aside class="notes">
@@ -417,6 +417,15 @@ function restoreRevealKeyboard() {
   Reveal.configure({ keyboard: revealKeyboardConfig });
 }
 
+function getExpandedCodeText(codeElement) {
+  const lineCells = codeElement.querySelectorAll('.hljs-ln-code');
+  if (lineCells.length) {
+    return Array.from(lineCells, (cell) => cell.textContent).join('\n');
+  }
+
+  return codeElement.textContent;
+}
+
 function openTerminal() {
   if (!terminalFrame.src) {
     terminalFrame.src = terminalUrl;
@@ -436,7 +445,7 @@ function closeTerminal() {
 
 function openCodeModal(codeElement) {
   codeModalContent.className = codeElement.className;
-  codeModalContent.textContent = codeElement.textContent;
+  codeModalContent.textContent = getExpandedCodeText(codeElement);
   if (window.hljs) {
     codeModalContent.removeAttribute('data-highlighted');
     window.hljs.highlightElement(codeModalContent);
