@@ -1,0 +1,11 @@
+services:
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.15.2
+    container_name: logstash-talk
+    working_dir: /talk
+    volumes:
+      - ./:/talk
+      - ./logstash.yml:/usr/share/logstash/config/logstash.yml
+    ports:
+      - "9600:9600"
+    command: ["bash", "-lc", "sleep infinity"]

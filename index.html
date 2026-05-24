@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logstash Is Not Free Compute</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css" id="theme">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
+  <link rel="stylesheet" href="css/custom.css">
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<section data-background-gradient="linear-gradient(135deg, #f8fbff, #e6f4f1 55%, #fff7ed)">
+  <p class="eyebrow">SRE-TOOLS</p>
+  <h1>Logstash - As we know it</h1>
+  <h3>From simple pipelines to production gotchas</h3>
+  <p class="muted">Pratik</p>
+  <aside class="notes">
+    Open with: Raise your hand if you have ever fixed a slow logging pipeline by increasing heap or workers first.
+  </aside>
+</section>
+
+<section>
+  <h2>The Mystery</h2>
+  <div class="question">Logs are delayed by 10 minutes. What knob do you turn first?</div>
+  <ul>
+    <li class="fragment">Increase Logstash heap?</li>
+    <li class="fragment">Add pipeline workers?</li>
+    <li class="fragment">Increase batch size?</li>
+    <li class="fragment">Blame Elasticsearch?</li>
+  </ul>
+  <p class="fragment punch">Usually: measure the pipeline before turning knobs.</p>
+  <aside class="notes">
+    Let audience vote. Then say most slowdowns are quiet architectural decisions, not one dramatic bug.
+    Performance loss usually comes from a few overlooked choices: too much work in Logstash filters, bad ingestion patterns, invisible backpressure, and schema/index issues downstream.
+  </aside>
+</section>
+
+<section>
+  <h2>Today's Rule</h2>
+  <blockquote>Logstash filters are production compute, not glue code.</blockquote>
+  <div class="two-col">
+    <div>
+      <h4>Cheap-ish</h4>
+      <p>Normalize at source, deterministic parsing, shallow mutations.</p>
+    </div>
+    <div>
+      <h4>Expensive fast</h4>
+      <p>Regex everywhere, Ruby filters, dynamic fields, external lookups.</p>
+    </div>
+  </div>
+  <aside class="notes">Logstash as a "production compute" or "compute engine" means leveraging its processing capabilities to ingest, 
+    parse, enrich, and transform massive streams of raw data in live, production environments before delivering them to downstream storage or analytics platforms</aside>
+</section>
+
+<section>
+  <h2>Mental Model</h2>
+  <pre><code class="language-conf" data-line-numbers>input {
+  # collect events
+}
+
+filter {
+  # transform events
+  # most production bugs live here
+}
+
+output {
+  # send events somewhere
+}</code></pre>
+  <p class="fragment">Inputs collect. Outputs send. Filters spend CPU.</p>
+</section>
+
+<section>
+  <h2>Cost Ladder</h2>
+  <ol class="cost-ladder">
+    <li>Do nothing</li>
+    <li>dissect</li>
+    <li>json</li>
+    <li>mutate / convert</li>
+    <li>grok / regex</li>
+    <li>condition-heavy branching</li>
+    <li>ruby</li>
+    <li>external lookups in hot path</li>
+  </ol>
+  <p class="question">Where does your pipeline sit?</p>
+</section>
+
+<section>
+  <h2>Demo 1: Hello Pipeline</h2>
+  <pre><code class="language-conf" data-line-numbers>input { stdin { } }
+
+filter {
+  mutate {
+    add_field => { "pipeline_stage" => "hello-demo" }
+  }
+}
+
+output { stdout { codec => rubydebug } }</code></pre>
+  <pre><code class="language-bash">bin/logstash -f pipelines/01-hello.conf</code></pre>
+  <aside class="notes">Paste: user=pratik action=login status=200. Ask: which field holds the original line? Answer: message.</aside>
+</section>
+
+<section>
+  <h2>Stable Log Shape</h2>
+  <pre><code class="language-text">2026-05-24T10:15:30Z api-01 INFO user=pratik action=login status=200 latency_ms=34</code></pre>
+  <div class="question">Do we need regex for this?</div>
+  <p class="fragment punch">No, if the format is deterministic.</p>
+</section>
+
+<section>
+  <h2>Demo 2A: Parse with dissect</h2>
+  <pre><code class="language-conf" data-line-numbers>filter {
+  dissect {
+    mapping => {
+      "message" => "%{log_ts} %{service} %{level} user=%{user} action=%{action} status=%{status} latency_ms=%{latency_ms}"
+    }
+  }
+
+  mutate {
+    convert => {
+      "status" => "integer"
+      "latency_ms" => "integer"
+    }
+  }
+}</code></pre>
+  <aside class="notes">Run pipelines/02-dissect.conf. Point out typed fields.</aside>
+</section>
+
+<section>
+  <h2>Demo 2B: Parse with grok</h2>
+  <pre><code class="language-conf" data-line-numbers>filter {
+  grok {
+    match => {
+      "message" => "%{TIMESTAMP_ISO8601:log_ts} %{DATA:service} %{LOGLEVEL:level} user=%{DATA:user} action=%{DATA:action} status=%{NUMBER:status:int} latency_ms=%{NUMBER:latency_ms:int}"
+    }
+  }
+}</code></pre>
+  <p class="question">Both work. Which one do you want at 50k events/sec?</p>
+</section>
+
+<section>
+  <h2>Performance Lab Setup</h2>
+  <pre><code class="language-bash" data-line-numbers>mkdir -p samples results
+cat > samples/one.log <<'LOG'
+2026-05-24T10:15:30Z api-01 INFO user=pratik action=login status=200 latency_ms=34
+LOG
+
+for i in $(seq 1 100000); do cat samples/one.log; done > samples/100k.log</code></pre>
+  <p class="muted">Goal: prove direction, not publish universal benchmark numbers.</p>
+</section>
+
+<section>
+  <h2>Benchmark Command</h2>
+  <pre><code class="language-bash" data-line-numbers>/usr/bin/time -p bin/logstash \
+  -f pipelines/bench-dissect.conf \
+  --path.data /tmp/ls-dissect
+
+/usr/bin/time -p bin/logstash \
+  -f pipelines/bench-grok.conf \
+  --path.data /tmp/ls-grok</code></pre>
+  <div class="metric-grid">
+    <div><b>real</b><span>wall time</span></div>
+    <div><b>user</b><span>CPU time</span></div>
+    <div><b>sys</b><span>kernel time</span></div>
+  </div>
+  <aside class="notes">Ask audience to predict which one uses more CPU. Repeat each run twice because JVM warmup matters.</aside>
+</section>
+
+<section>
+  <h2>Fill This Live</h2>
+  <table>
+    <thead><tr><th>Pipeline</th><th>Events</th><th>Real time</th><th>Events/sec</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>dissect</td><td>100,000</td><td>____</td><td>____</td><td>deterministic</td></tr>
+      <tr><td>grok</td><td>100,000</td><td>____</td><td>____</td><td>regex</td></tr>
+      <tr><td>expensive grok</td><td>100,000</td><td>____</td><td>____</td><td>GREEDYDATA</td></tr>
+    </tbody>
+  </table>
+  <p class="question">Is one laptop run enough for production sizing?</p>
+</section>
+
+<section>
+  <h2>Benchmark Gotchas</h2>
+  <ul>
+    <li class="fragment"><code>sincedb</code> can make Logstash process zero events.</li>
+    <li class="fragment">Use separate <code>--path.data</code> for each run.</li>
+    <li class="fragment">Avoid <code>rubydebug</code> for benchmarks. Console output dominates.</li>
+    <li class="fragment">Elasticsearch output measures parser + network + bulk indexing.</li>
+    <li class="fragment">JVM warmup makes first runs noisy.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Demo 3: Silent Failure</h2>
+  <pre><code class="language-text">bad log line with no structure</code></pre>
+  <pre><code class="language-conf" data-line-numbers>if "_grokparsefailure" in [tags] {
+  mutate { add_field => { "parse_status" => "failed" } }
+} else {
+  mutate { add_field => { "parse_status" => "ok" } }
+}</code></pre>
+  <p class="punch">A failed parser is not always an outage. An unobserved failed parser is data corruption.</p>
+</section>
+
+<section>
+  <h2>Audience Bug Hunt</h2>
+  <pre><code class="language-conf" data-line-numbers>mutate {
+  convert => { "status" => "integer" }
+}
+
+if [status] == "200" {
+  mutate { add_field => { "success" => true } }
+}</code></pre>
+  <p class="fragment punch">Bug: <code>status</code> is now integer, but condition checks string.</p>
+</section>
+
+<section>
+  <h2>Backpressure: The Warning Light</h2>
+  <pre><code class="language-yaml" data-line-numbers>queue.type: persisted
+path.queue: /var/lib/logstash/queue
+queue.max_bytes: 1gb</code></pre>
+  <pre><code class="language-bash">curl -s localhost:9600/_node/stats/pipelines?pretty</code></pre>
+  <ul>
+    <li><code>events.in</code>, <code>events.filtered</code>, <code>events.out</code></li>
+    <li><code>duration_in_millis</code></li>
+    <li><code>queue_push_duration_in_millis</code></li>
+  </ul>
+  <p class="muted">Persistent queue growth is not success. It means downstream cannot keep up.</p>
+</section>
+
+<section>
+  <h2>Final Debugging Game</h2>
+  <pre><code class="language-conf" data-line-numbers>grok {
+  match => {
+    "message" => "%{GREEDYDATA:raw_prefix} user=%{DATA:user} action=%{DATA:action} payload=%{GREEDYDATA:payload}"
+  }
+}
+
+ruby {
+  code => 'event.set("payload_length", event.get("payload").length)'
+}
+
+mutate {
+  add_field => { "tenant_%{user}" => "active" }
+}</code></pre>
+  <p class="question">What scares you?</p>
+</section>
+
+<section>
+  <h2>Mastery Checklist</h2>
+  <ul>
+    <li>Can you name the most expensive filter?</li>
+    <li>Can malformed events be quarantined?</li>
+    <li>Can you measure events/sec per pipeline?</li>
+    <li>Can you explain queue growth?</li>
+    <li>Can your schema survive arbitrary input?</li>
+  </ul>
+  <blockquote>Do not ask “Can Logstash do this?” Ask “Should Logstash do this on every event, forever?”</blockquote>
+</section>
+
+<section data-background-gradient="linear-gradient(135deg, #f8fbff, #e6f4f1 55%, #fff7ed)">
+  <h1>Thank You</h1>
+  <p class="muted">Open speaker notes with <kbd>S</kbd>. Navigate with arrows or space.</p>
+</section>
+
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/notes/notes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/highlight.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/zoom/zoom.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: 'c/t',
+  transition: 'slide',
+  backgroundTransition: 'fade',
+  plugins: [ RevealHighlight, RevealNotes, RevealZoom ]
+});
+</script>
+</body>
+</html>
