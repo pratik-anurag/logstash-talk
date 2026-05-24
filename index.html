@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Logstash Is Not Free Compute</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Source+Sans+3:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css" id="theme">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
@@ -75,16 +76,23 @@ output {
 
 <section>
   <h2>Cost Ladder</h2>
-  <ol class="cost-ladder">
-    <li>Do nothing</li>
-    <li>dissect</li>
-    <li>json</li>
-    <li>mutate / convert</li>
-    <li>grok / regex</li>
-    <li>condition-heavy branching</li>
-    <li>ruby</li>
-    <li>external lookups in hot path</li>
-  </ol>
+  <div class="cost-ladder-wrap">
+    <div class="cost-axis" aria-hidden="true">
+      <div class="cost-axis-label cost-axis-top">Cheapest</div>
+      <div class="cost-axis-line"></div>
+      <div class="cost-axis-label cost-axis-bottom">Costliest</div>
+    </div>
+    <ol class="cost-ladder">
+      <li data-cost-title="Do Nothing" data-cost-snippet="snippets/12-cost-do-nothing.conf" data-cost-description="This is the floor. Logstash accepts an event and forwards it with almost no transformation work in the hot path.">Do nothing</li>
+      <li data-cost-title="Dissect" data-cost-snippet="snippets/13-cost-dissect.conf" data-cost-description="Dissect is cheap because it splits a deterministic string by delimiters instead of running a regex engine on every event.">dissect</li>
+      <li data-cost-title="JSON" data-cost-snippet="snippets/14-cost-json.conf" data-cost-description="JSON parsing is still structured and predictable, but decoding every document costs more than simple delimiter-based tokenization.">json</li>
+      <li data-cost-title="Mutate / Convert" data-cost-snippet="snippets/15-cost-mutate-convert.conf" data-cost-description="Field renames, conversions, and normalization are usually fine, but repeated per-event mutations still add measurable work.">mutate / convert</li>
+      <li data-cost-title="Grok / Regex" data-cost-snippet="snippets/16-cost-grok.conf" data-cost-description="Grok buys flexibility, but regex matching is significantly heavier than deterministic parsing when volume rises.">grok / regex</li>
+      <li data-cost-title="Condition-Heavy Branching" data-cost-snippet="snippets/17-cost-branching.conf" data-cost-description="Lots of branching multiplies the decision work on every event and makes pipelines harder to reason about and tune.">condition-heavy branching</li>
+      <li data-cost-title="Ruby" data-cost-snippet="snippets/18-cost-ruby.conf" data-cost-description="Ruby filters let you do almost anything, which is exactly why they are risky in a production event loop.">ruby</li>
+      <li data-cost-title="External Lookups In Hot Path" data-cost-snippet="snippets/19-cost-external-lookup.conf" data-cost-description="This is the top rung because each event can now depend on network or storage latency outside Logstash itself.">external lookups in hot path</li>
+    </ol>
+  </div>
   <p class="question">Where does your pipeline sit?</p>
 </section>
 
@@ -262,6 +270,29 @@ mutate {
 </div>
 </div>
 
+<div class="code-modal" id="code-modal" hidden>
+  <div class="code-dialog" role="dialog" aria-modal="true" aria-label="Expanded code block">
+    <div class="code-toolbar">
+      <strong>Expanded Code</strong>
+      <button class="code-close" type="button" aria-label="Close expanded code">x</button>
+    </div>
+    <pre class="code-modal-pre"><code id="code-modal-content"></code></pre>
+  </div>
+</div>
+
+<div class="cost-modal" id="cost-modal" hidden>
+  <div class="cost-dialog" role="dialog" aria-modal="true" aria-label="Cost ladder details">
+    <div class="cost-toolbar">
+      <div class="cost-heading">
+        <strong id="cost-modal-title">Cost Ladder Detail</strong>
+        <p id="cost-modal-description"></p>
+      </div>
+      <button class="cost-close" type="button" aria-label="Close cost ladder detail">x</button>
+    </div>
+    <pre class="cost-modal-pre"><code id="cost-modal-content" class="language-conf"></code></pre>
+  </div>
+</div>
+
 <div class="terminal-modal" id="terminal-modal" hidden>
   <div class="terminal-dialog" role="dialog" aria-modal="true" aria-label="Embedded terminal">
     <div class="terminal-toolbar">
@@ -294,17 +325,33 @@ const terminalModal = document.getElementById('terminal-modal');
 const terminalFrame = document.getElementById('terminal-frame');
 const terminalUrlLabel = document.getElementById('terminal-url');
 const terminalClose = document.querySelector('.terminal-close');
+const codeModal = document.getElementById('code-modal');
+const codeModalContent = document.getElementById('code-modal-content');
+const codeClose = document.querySelector('.code-close');
+const costModal = document.getElementById('cost-modal');
+const costModalTitle = document.getElementById('cost-modal-title');
+const costModalDescription = document.getElementById('cost-modal-description');
+const costModalContent = document.getElementById('cost-modal-content');
+const costClose = document.querySelector('.cost-close');
 let revealKeyboardConfig = true;
 
 terminalUrlLabel.textContent = terminalUrl.replace(/^https?:\/\//, '');
+
+function disableRevealKeyboard() {
+  revealKeyboardConfig = Reveal.getConfig().keyboard;
+  Reveal.configure({ keyboard: false });
+}
+
+function restoreRevealKeyboard() {
+  Reveal.configure({ keyboard: revealKeyboardConfig });
+}
 
 function openTerminal() {
   if (!terminalFrame.src) {
     terminalFrame.src = terminalUrl;
   }
 
-  revealKeyboardConfig = Reveal.getConfig().keyboard;
-  Reveal.configure({ keyboard: false });
+  disableRevealKeyboard();
   terminalModal.hidden = false;
   document.body.classList.add('terminal-open');
   setTimeout(() => terminalFrame.focus(), 0);
@@ -313,7 +360,59 @@ function openTerminal() {
 function closeTerminal() {
   terminalModal.hidden = true;
   document.body.classList.remove('terminal-open');
-  Reveal.configure({ keyboard: revealKeyboardConfig });
+  restoreRevealKeyboard();
+}
+
+function openCodeModal(codeElement) {
+  codeModalContent.className = codeElement.className;
+  codeModalContent.textContent = codeElement.textContent;
+  if (window.hljs) {
+    codeModalContent.removeAttribute('data-highlighted');
+    window.hljs.highlightElement(codeModalContent);
+  }
+  disableRevealKeyboard();
+  codeModal.hidden = false;
+  document.body.classList.add('code-open');
+  codeClose.focus();
+}
+
+function closeCodeModal() {
+  codeModal.hidden = true;
+  document.body.classList.remove('code-open');
+  restoreRevealKeyboard();
+}
+
+async function openCostModal(costItem) {
+  costModalTitle.textContent = costItem.dataset.costTitle;
+  costModalDescription.textContent = costItem.dataset.costDescription;
+  costModalContent.textContent = 'Loading sample config...';
+  costModal.hidden = false;
+  document.body.classList.add('cost-open');
+  disableRevealKeyboard();
+  costClose.focus();
+
+  try {
+    const response = await fetch(costItem.dataset.costSnippet);
+    if (!response.ok) {
+      throw new Error('Snippet request failed');
+    }
+
+    costModalContent.className = 'language-conf';
+    costModalContent.textContent = await response.text();
+    if (window.hljs) {
+      costModalContent.removeAttribute('data-highlighted');
+      window.hljs.highlightElement(costModalContent);
+    }
+  } catch (error) {
+    costModalContent.className = 'language-text';
+    costModalContent.textContent = 'Unable to load ' + costItem.dataset.costSnippet + '. Serve the deck over http://localhost:8000 so the slide can fetch snippet files.';
+  }
+}
+
+function closeCostModal() {
+  costModal.hidden = true;
+  document.body.classList.remove('cost-open');
+  restoreRevealKeyboard();
 }
 
 document.querySelectorAll('section[data-terminal]').forEach((section) => {
@@ -331,6 +430,47 @@ document.querySelectorAll('section[data-terminal]').forEach((section) => {
   section.appendChild(button);
 });
 
+document.querySelectorAll('.reveal pre').forEach((preBlock) => {
+  const codeElement = preBlock.querySelector('code');
+  if (!codeElement) {
+    return;
+  }
+
+  preBlock.classList.add('expandable-code');
+  preBlock.addEventListener('click', () => {
+    openCodeModal(codeElement);
+  });
+
+  const button = document.createElement('button');
+  button.className = 'code-expand';
+  button.type = 'button';
+  button.title = 'Expand code';
+  button.setAttribute('aria-label', 'Expand code');
+  button.innerHTML = '<span aria-hidden="true">[]</span>';
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openCodeModal(codeElement);
+  });
+  preBlock.appendChild(button);
+});
+
+document.querySelectorAll('.cost-ladder li[data-cost-snippet]').forEach((costItem) => {
+  costItem.classList.add('cost-rung');
+  costItem.tabIndex = 0;
+  costItem.setAttribute('role', 'button');
+  costItem.setAttribute('aria-label', 'Open details for ' + costItem.dataset.costTitle);
+  costItem.addEventListener('click', () => {
+    openCostModal(costItem);
+  });
+  costItem.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openCostModal(costItem);
+    }
+  });
+});
+
 terminalClose.addEventListener('click', closeTerminal);
 terminalModal.addEventListener('click', (event) => {
   if (event.target === terminalModal) {
@@ -338,10 +478,32 @@ terminalModal.addEventListener('click', (event) => {
   }
 });
 
+codeClose.addEventListener('click', closeCodeModal);
+codeModal.addEventListener('click', (event) => {
+  if (event.target === codeModal) {
+    closeCodeModal();
+  }
+});
+
+costClose.addEventListener('click', closeCostModal);
+costModal.addEventListener('click', (event) => {
+  if (event.target === costModal) {
+    closeCostModal();
+  }
+});
+
 document.addEventListener('keydown', (event) => {
   if (!terminalModal.hidden && event.key === 'Escape') {
     event.preventDefault();
     closeTerminal();
+  }
+  if (!codeModal.hidden && event.key === 'Escape') {
+    event.preventDefault();
+    closeCodeModal();
+  }
+  if (!costModal.hidden && event.key === 'Escape') {
+    event.preventDefault();
+    closeCostModal();
   }
 });
 </script>
