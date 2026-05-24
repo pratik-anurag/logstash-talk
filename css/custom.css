@@ -15,6 +15,8 @@
   --code-bg: #f4f8fd;
   --code-line: rgba(29, 95, 209, .16);
   --terminal-bg: #09111f;
+  --content-max: 1180px;
+  --content-wide: 1220px;
 }
 
 html,
@@ -109,7 +111,7 @@ body {
 }
 
 .reveal p {
-  max-width: 1020px;
+  max-width: var(--content-max);
 }
 
 .reveal ul,
@@ -121,6 +123,43 @@ body {
   margin: .16em 0;
 }
 
+.reveal section > ul:not(.cost-ladder),
+.reveal section > ol:not(.cost-ladder) {
+  display: grid;
+  gap: 10px;
+  width: min(var(--content-max), 100%);
+  margin: 14px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.reveal section > ul:not(.cost-ladder) > li,
+.reveal section > ol:not(.cost-ladder) > li {
+  position: relative;
+  margin: 0;
+  padding: 13px 16px 13px 46px;
+  border: 1px solid rgba(23, 32, 51, .12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(246, 250, 255, .84)),
+    radial-gradient(circle at 100% 0, rgba(29, 95, 209, .08), transparent 44%);
+  box-shadow: 0 14px 30px rgba(22, 47, 90, .1);
+}
+
+.reveal section > ul:not(.cost-ladder) > li::before,
+.reveal section > ol:not(.cost-ladder) > li::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--blue);
+  box-shadow: 0 0 0 6px rgba(29, 95, 209, .1);
+}
+
 .reveal strong,
 .reveal b {
   color: var(--blue);
@@ -128,7 +167,7 @@ body {
 
 .reveal blockquote {
   width: auto;
-  max-width: 1020px;
+  max-width: var(--content-max);
   margin: .45em 0 .8em;
   padding: 20px 24px;
   border-left: 8px solid var(--blue);
@@ -143,7 +182,7 @@ body {
 
 .reveal table {
   width: 100%;
-  max-width: 1040px;
+  max-width: var(--content-max);
   margin-top: .25em;
   border-collapse: collapse;
   table-layout: fixed;
@@ -166,7 +205,7 @@ body {
 
 .reveal pre {
   width: 100%;
-  max-width: 1180px;
+  max-width: var(--content-max);
   margin: .24em 0 .56em;
   position: relative;
   border: 1px solid var(--code-line);
@@ -331,7 +370,7 @@ body {
 }
 
 .question {
-  width: min(980px, 100%);
+  width: min(var(--content-max), 100%);
   margin: 16px 0 18px;
   padding: 16px 20px;
   border: 1px solid rgba(29, 95, 209, .18);
@@ -350,7 +389,7 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
-  width: min(1000px, 100%);
+  width: min(var(--content-max), 100%);
   margin-top: 22px;
 }
 
@@ -371,7 +410,7 @@ body {
   grid-template-columns: 118px 1fr;
   gap: 16px;
   align-items: stretch;
-  width: min(1000px, 100%);
+  width: min(var(--content-max), 100%);
 }
 
 .cost-axis {
@@ -482,7 +521,7 @@ body {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
-  width: min(1220px, 100%);
+  width: min(var(--content-wide), 100%);
   margin: 16px 0 22px;
 }
 
@@ -540,7 +579,7 @@ body {
 }
 
 .checklist-close {
-  max-width: 1220px !important;
+  max-width: var(--content-wide) !important;
   margin-top: 8px !important;
 }
 
@@ -548,7 +587,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  width: min(1180px, 100%);
+  width: min(var(--content-max), 100%);
   margin: 14px 0 18px;
 }
 
@@ -596,7 +635,7 @@ body {
 .results-board {
   display: grid;
   gap: 10px;
-  width: min(1180px, 100%);
+  width: min(var(--content-max), 100%);
   margin: 14px 0 14px;
 }
 
@@ -687,7 +726,7 @@ body {
   grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr);
   gap: 18px;
   align-items: stretch;
-  width: min(1120px, 100%);
+  width: min(var(--content-max), 100%);
   margin: 14px 0 16px;
 }
 
@@ -755,7 +794,7 @@ body {
   grid-template-columns: minmax(0, 1.08fr) minmax(390px, .92fr);
   gap: 18px;
   align-items: stretch;
-  width: min(1120px, 100%);
+  width: min(var(--content-max), 100%);
   margin: 16px 0 18px;
 }
 
@@ -815,7 +854,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  width: min(1000px, 100%);
+  width: min(var(--content-max), 100%);
   margin-top: 16px;
 }
 
@@ -1106,6 +1145,24 @@ kbd {
   .reveal td,
   .reveal th {
     font-size: .64em;
+  }
+
+  .reveal section > ul:not(.cost-ladder),
+  .reveal section > ol:not(.cost-ladder) {
+    gap: 8px;
+    margin: 10px 0 12px;
+  }
+
+  .reveal section > ul:not(.cost-ladder) > li,
+  .reveal section > ol:not(.cost-ladder) > li {
+    padding: 10px 12px 10px 38px;
+  }
+
+  .reveal section > ul:not(.cost-ladder) > li::before,
+  .reveal section > ol:not(.cost-ladder) > li::before {
+    left: 15px;
+    width: 8px;
+    height: 8px;
   }
 
   .two-col,
