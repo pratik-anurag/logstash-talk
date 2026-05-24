@@ -88,7 +88,7 @@ output {
   <p class="question">Where does your pipeline sit?</p>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Demo 1: Hello Pipeline</h2>
   <pre><code class="language-conf" data-line-numbers>input { stdin { } }
 
@@ -99,7 +99,7 @@ filter {
 }
 
 output { stdout { codec => rubydebug } }</code></pre>
-  <pre><code class="language-bash">bin/logstash -f pipelines/01-hello.conf</code></pre>
+  <pre><code class="language-bash">./commands/01-hello.sh</code></pre>
   <aside class="notes">Paste: user=pratik action=login status=200. Ask: which field holds the original line? Answer: message.</aside>
 </section>
 
@@ -110,7 +110,7 @@ output { stdout { codec => rubydebug } }</code></pre>
   <p class="fragment punch">No, if the format is deterministic.</p>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Demo 2A: Parse with dissect</h2>
   <pre><code class="language-conf" data-line-numbers>filter {
   dissect {
@@ -126,10 +126,11 @@ output { stdout { codec => rubydebug } }</code></pre>
     }
   }
 }</code></pre>
+  <pre><code class="language-bash">./commands/02-dissect.sh</code></pre>
   <aside class="notes">Run pipelines/02-dissect.conf. Point out typed fields.</aside>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Demo 2B: Parse with grok</h2>
   <pre><code class="language-conf" data-line-numbers>filter {
   grok {
@@ -138,29 +139,19 @@ output { stdout { codec => rubydebug } }</code></pre>
     }
   }
 }</code></pre>
+  <pre><code class="language-bash">./commands/03-grok.sh</code></pre>
   <p class="question">Both work. Which one do you want at 50k events/sec?</p>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Performance Lab Setup</h2>
-  <pre><code class="language-bash" data-line-numbers>mkdir -p samples results
-cat > samples/one.log <<'LOG'
-2026-05-24T10:15:30Z api-01 INFO user=pratik action=login status=200 latency_ms=34
-LOG
-
-for i in $(seq 1 100000); do cat samples/one.log; done > samples/100k.log</code></pre>
+  <pre><code class="language-bash">./commands/04-generate-100k.sh</code></pre>
   <p class="muted">Goal: prove direction, not publish universal benchmark numbers.</p>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Benchmark Command</h2>
-  <pre><code class="language-bash" data-line-numbers>/usr/bin/time -p bin/logstash \
-  -f pipelines/bench-dissect.conf \
-  --path.data /tmp/ls-dissect
-
-/usr/bin/time -p bin/logstash \
-  -f pipelines/bench-grok.conf \
-  --path.data /tmp/ls-grok</code></pre>
+  <pre><code class="language-bash">./commands/05-benchmark.sh</code></pre>
   <div class="metric-grid">
     <div><b>real</b><span>wall time</span></div>
     <div><b>user</b><span>CPU time</span></div>
@@ -193,7 +184,7 @@ for i in $(seq 1 100000); do cat samples/one.log; done > samples/100k.log</code>
   </ul>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Demo 3: Silent Failure</h2>
   <pre><code class="language-text">bad log line with no structure</code></pre>
   <pre><code class="language-conf" data-line-numbers>if "_grokparsefailure" in [tags] {
@@ -201,10 +192,11 @@ for i in $(seq 1 100000); do cat samples/one.log; done > samples/100k.log</code>
 } else {
   mutate { add_field => { "parse_status" => "ok" } }
 }</code></pre>
+  <pre><code class="language-bash">./commands/06-failure-tags.sh</code></pre>
   <p class="punch">A failed parser is not always an outage. An unobserved failed parser is data corruption.</p>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Audience Bug Hunt</h2>
   <pre><code class="language-conf" data-line-numbers>mutate {
   convert => { "status" => "integer" }
@@ -213,15 +205,16 @@ for i in $(seq 1 100000); do cat samples/one.log; done > samples/100k.log</code>
 if [status] == "200" {
   mutate { add_field => { "success" => true } }
 }</code></pre>
+  <pre><code class="language-bash">./commands/07-type-bug.sh</code></pre>
   <p class="fragment punch">Bug: <code>status</code> is now integer, but condition checks string.</p>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Backpressure: The Warning Light</h2>
   <pre><code class="language-yaml" data-line-numbers>queue.type: persisted
 path.queue: /var/lib/logstash/queue
 queue.max_bytes: 1gb</code></pre>
-  <pre><code class="language-bash">curl -s localhost:9600/_node/stats/pipelines?pretty</code></pre>
+  <pre><code class="language-bash">./commands/08-node-stats.sh</code></pre>
   <ul>
     <li><code>events.in</code>, <code>events.filtered</code>, <code>events.out</code></li>
     <li><code>duration_in_millis</code></li>
@@ -230,7 +223,7 @@ queue.max_bytes: 1gb</code></pre>
   <p class="muted">Persistent queue growth is not success. It means downstream cannot keep up.</p>
 </section>
 
-<section>
+<section data-terminal>
   <h2>Final Debugging Game</h2>
   <pre><code class="language-conf" data-line-numbers>grok {
   match => {
@@ -245,6 +238,7 @@ ruby {
 mutate {
   add_field => { "tenant_%{user}" => "active" }
 }</code></pre>
+  <pre><code class="language-bash">./commands/09-final-debugging.sh</code></pre>
   <p class="question">What scares you?</p>
 </section>
 
@@ -267,6 +261,20 @@ mutate {
 
 </div>
 </div>
+
+<div class="terminal-modal" id="terminal-modal" hidden>
+  <div class="terminal-dialog" role="dialog" aria-modal="true" aria-label="Embedded terminal">
+    <div class="terminal-toolbar">
+      <div class="terminal-title">
+        <strong>&gt;_ Terminal</strong>
+        <span id="terminal-url">localhost:7681</span>
+      </div>
+      <button class="terminal-close" type="button" aria-label="Close terminal">x</button>
+    </div>
+    <iframe id="terminal-frame" title="Local terminal"></iframe>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/notes/notes.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/highlight.js"></script>
@@ -278,6 +286,63 @@ Reveal.initialize({
   transition: 'slide',
   backgroundTransition: 'fade',
   plugins: [ RevealHighlight, RevealNotes, RevealZoom ]
+});
+
+const terminalParams = new URLSearchParams(window.location.search);
+const terminalUrl = terminalParams.get('terminal') || 'http://localhost:7681';
+const terminalModal = document.getElementById('terminal-modal');
+const terminalFrame = document.getElementById('terminal-frame');
+const terminalUrlLabel = document.getElementById('terminal-url');
+const terminalClose = document.querySelector('.terminal-close');
+let revealKeyboardConfig = true;
+
+terminalUrlLabel.textContent = terminalUrl.replace(/^https?:\/\//, '');
+
+function openTerminal() {
+  if (!terminalFrame.src) {
+    terminalFrame.src = terminalUrl;
+  }
+
+  revealKeyboardConfig = Reveal.getConfig().keyboard;
+  Reveal.configure({ keyboard: false });
+  terminalModal.hidden = false;
+  document.body.classList.add('terminal-open');
+  setTimeout(() => terminalFrame.focus(), 0);
+}
+
+function closeTerminal() {
+  terminalModal.hidden = true;
+  document.body.classList.remove('terminal-open');
+  Reveal.configure({ keyboard: revealKeyboardConfig });
+}
+
+document.querySelectorAll('section[data-terminal]').forEach((section) => {
+  const button = document.createElement('button');
+  button.className = 'terminal-launch';
+  button.type = 'button';
+  button.title = 'Open terminal';
+  button.setAttribute('aria-label', 'Open terminal');
+  button.innerHTML = '<span aria-hidden="true">&gt;_</span>';
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openTerminal();
+  });
+  section.appendChild(button);
+});
+
+terminalClose.addEventListener('click', closeTerminal);
+terminalModal.addEventListener('click', (event) => {
+  if (event.target === terminalModal) {
+    closeTerminal();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (!terminalModal.hidden && event.key === 'Escape') {
+    event.preventDefault();
+    closeTerminal();
+  }
 });
 </script>
 </body>

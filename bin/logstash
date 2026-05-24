@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF_PATH="$SELF_DIR/logstash"
+
+if command -v logstash >/dev/null 2>&1; then
+  CANDIDATE="$(command -v logstash)"
+  if [[ "$CANDIDATE" != "$SELF_PATH" ]]; then
+    exec "$CANDIDATE" "$@"
+  fi
+fi
+
+for candidate in \
+  /opt/homebrew/bin/logstash \
+  /usr/local/bin/logstash \
+  /opt/homebrew/opt/logstash/bin/logstash \
+  /usr/local/opt/logstash/bin/logstash \
+  /opt/homebrew/opt/logstash-full/bin/logstash \
+  /usr/local/opt/logstash-full/bin/logstash
+do
+  if [[ -x "$candidate" ]]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+if command -v brew >/dev/null 2>&1; then
+  for formula in logstash logstash-full elastic/tap/logstash-full; do
+    prefix="$(brew --prefix "$formula" 2>/dev/null || true)"
+    if [[ -n "$prefix" && -x "$prefix/bin/logstash" ]]; then
+      exec "$prefix/bin/logstash" "$@"
+    fi
+  done
+fi
+
+echo "Logstash executable not found. Run ./setup.sh first." >&2
+exit 127

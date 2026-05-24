@@ -1,0 +1,1 @@
+2026-05-24T10:15:30Z api-01 INFO user=pratik action=checkout payload={"cart_id":"demo-1","items":3,"total":42.50}
