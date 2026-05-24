@@ -750,6 +750,67 @@ body {
   line-height: 1.14;
 }
 
+.lab-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(390px, .92fr);
+  gap: 18px;
+  align-items: stretch;
+  width: min(1120px, 100%);
+  margin: 16px 0 18px;
+}
+
+.lab-panel > div {
+  min-width: 0;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(23, 32, 51, .12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(246, 250, 255, .84)),
+    radial-gradient(circle at 100% 0, rgba(14, 124, 116, .1), transparent 44%);
+  box-shadow: 0 16px 34px rgba(22, 47, 90, .11);
+}
+
+.lab-panel pre {
+  max-width: none;
+  margin-bottom: 14px;
+}
+
+.lab-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .5em;
+  line-height: 1.28;
+}
+
+.lab-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.lab-steps div {
+  min-height: 74px;
+  padding: 12px 14px;
+  border: 1px solid rgba(14, 124, 116, .16);
+  border-radius: 10px;
+  background: rgba(232, 247, 245, .58);
+}
+
+.lab-steps b {
+  display: block;
+  color: var(--teal);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .56em;
+  line-height: 1.12;
+}
+
+.lab-steps span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .44em;
+  line-height: 1.2;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1141,6 +1202,36 @@ kbd {
 
   .benchmark-flow span {
     font-size: .46em;
+  }
+
+  .lab-panel {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .lab-panel > div {
+    padding: 12px 14px;
+  }
+
+  .lab-panel p {
+    font-size: .42em;
+  }
+
+  .lab-steps {
+    gap: 8px;
+  }
+
+  .lab-steps div {
+    min-height: auto;
+    padding: 10px 12px;
+  }
+
+  .lab-steps b {
+    font-size: .48em;
+  }
+
+  .lab-steps span {
+    font-size: .38em;
   }
 
   .ops-checklist {

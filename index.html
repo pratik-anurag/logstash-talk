@@ -180,11 +180,23 @@ output { stdout { codec => rubydebug } }</code></pre>
 
 <section data-terminal>
   <h2>Performance Lab Setup</h2>
-  <pre><code class="language-bash">./commands/04-generate-100k.sh</code></pre>
-  <p class="muted">Goal: prove direction, not publish universal benchmark numbers.</p>
+  <div class="lab-panel">
+    <div>
+      <span class="panel-label">Prepare input</span>
+      <pre><code class="language-bash">./commands/04-generate-100k.sh</code></pre>
+      <p>Creates a repeatable 100k-event sample so parser comparisons use the same input.</p>
+    </div>
+    <div class="lab-steps">
+      <div><b>Fixed volume</b><span>100,000 events</span></div>
+      <div><b>Controlled input</b><span>Same shape for each parser</span></div>
+      <div><b>Directional goal</b><span>Compare cost, not capacity</span></div>
+    </div>
+  </div>
+  <p class="question">Goal is to prove direction, not publish universal benchmark numbers.</p>
   <aside class="notes">
-    Explain that laptop measurements are directional only.
-    We are controlling the input and output so the parser comparison is easier to reason about.
+    <p>Explain that laptop measurements are directional only.</p>
+    <p>Click the command first so the room can inspect `commands/04-generate-100k.sh`. The script creates the fixed input sample used by the parser benchmark.</p>
+    <p>We are controlling the input and output so the parser comparison is easier to reason about. This does not represent production capacity because production also includes outputs, workers, heap, queue behavior, downstream indexing, and real traffic variance.</p>
   </aside>
 </section>
 
