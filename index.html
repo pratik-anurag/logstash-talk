@@ -204,39 +204,107 @@ output { stdout { codec => rubydebug } }</code></pre>
 
 <section>
   <h2>Live Results</h2>
-  <table>
-    <thead><tr><th>Pipeline</th><th>Events</th><th>Real time</th><th>Events/sec</th><th>Notes</th></tr></thead>
-    <tbody>
-      <tr><td>dissect</td><td>100,000</td><td>____</td><td>____</td><td>deterministic</td></tr>
-      <tr><td>grok</td><td>100,000</td><td>____</td><td>____</td><td>regex</td></tr>
-      <tr><td>expensive grok</td><td>100,000</td><td>____</td><td>____</td><td>GREEDYDATA</td></tr>
-    </tbody>
-  </table>
+  <div class="results-board">
+    <div class="results-head">
+      <span>Pipeline</span>
+      <span>Events</span>
+      <span>Real time</span>
+      <span>Events/sec</span>
+      <span>Expected signal</span>
+    </div>
+    <div class="results-row">
+      <b>dissect</b>
+      <span>100,000</span>
+      <span class="result-blank">fill live</span>
+      <span class="result-blank">calc live</span>
+      <em>Fastest when shape is fixed</em>
+    </div>
+    <div class="results-row">
+      <b>grok</b>
+      <span>100,000</span>
+      <span class="result-blank">fill live</span>
+      <span class="result-blank">calc live</span>
+      <em>Slower, more flexible regex</em>
+    </div>
+    <div class="results-row">
+      <b>expensive grok</b>
+      <span>100,000</span>
+      <span class="result-blank">fill live</span>
+      <span class="result-blank">calc live</span>
+      <em>Usually slowest: broad matching</em>
+    </div>
+  </div>
+  <div class="results-formula">
+    <b>Events/sec</b>
+    <span>100,000 / real time in seconds</span>
+  </div>
   <p class="question">Use the result as a signal, not capacity planning.</p>
   <aside class="notes">
-    Fill the table only after running the benchmark.
-    Make clear that production sizing needs representative data, outputs, pipeline workers, heap, downstream behavior, and repeated runs.
+    <p>Fill this slide only after running `./commands/05-benchmark.sh`.</p>
+
+    <p>Real time is the wall-clock time from the benchmark output. Events/sec is `100000 / real_time_seconds`. For example, if real time is 8.0 seconds, throughput is 12,500 events/sec.</p>
+
+    <p>The expected direction is dissect fastest, normal grok slower, expensive grok slowest. If the order is different, use that as a debugging prompt: JVM warmup, file state, output pressure, Docker resources, or a benchmark mistake may be dominating the parser cost.</p>
+
+    <p>Make clear that production sizing needs representative data, outputs, pipeline workers, heap, downstream behavior, and repeated runs.</p>
   </aside>
 </section>
 
 <section>
   <h2>Benchmark Gotchas</h2>
-  <ul>
-    <li class="fragment"><code>sincedb</code> can make Logstash process zero events.</li>
-    <li class="fragment">Use separate <code>--path.data</code> for each run.</li>
-    <li class="fragment">Avoid <code>rubydebug</code> for benchmarks. Console output dominates.</li>
-    <li class="fragment">Elasticsearch output measures parser + network + bulk indexing.</li>
-    <li class="fragment">JVM warmup makes first runs noisy.</li>
-  </ul>
+  <div class="gotcha-grid">
+    <div class="fragment">
+      <span>State</span>
+      <b><code>sincedb</code> can process zero events</b>
+      <p>Use a fresh <code>--path.data</code> or disable/recreate file input state for repeatable runs.</p>
+    </div>
+    <div class="fragment">
+      <span>Output</span>
+      <b>Console output dominates timing</b>
+      <p>Avoid <code>rubydebug</code> and noisy stdout when measuring parser cost.</p>
+    </div>
+    <div class="fragment">
+      <span>Scope</span>
+      <b>Elasticsearch changes the benchmark</b>
+      <p>It adds network, bulk indexing, mappings, refresh behavior, and rejection pressure.</p>
+    </div>
+    <div class="fragment">
+      <span>Runtime</span>
+      <b>First runs are noisy</b>
+      <p>JVM warmup, filesystem cache, CPU scaling, and background processes move the number.</p>
+    </div>
+    <div class="fragment">
+      <span>Data</span>
+      <b>Synthetic logs can lie</b>
+      <p>Use representative message sizes, failure rates, optional fields, and worst-case patterns.</p>
+    </div>
+    <div class="fragment">
+      <span>Method</span>
+      <b>One run is not a result</b>
+      <p>Run several times, discard warmup, compare medians, and change one variable at a time.</p>
+    </div>
+  </div>
+  <p class="question">Decide what you are measuring before trusting the number.</p>
   <aside class="notes">
-    The main correction here is to avoid false confidence.
-    A benchmark can accidentally measure stdout, disk, network, sincedb state, or Elasticsearch indexing instead of the parser you meant to compare.
+    <p>This section does make sense because it protects the audience from false confidence. The benchmark is useful for direction, but only if the measured system is actually the parser or filter cost we intended to isolate.</p>
+
+    <p><strong>State:</strong> file input state can make a second run process zero events. Use a separate `--path.data`, clear sincedb, or generate a fresh input path when repeating file-input benchmarks.</p>
+
+    <p><strong>Output:</strong> `rubydebug` and console output can dominate runtime. For parser comparisons, output to `null`, a controlled file, or another minimal sink where possible.</p>
+
+    <p><strong>Scope:</strong> Elasticsearch output is a different benchmark. It measures parser cost plus network latency, bulk indexing, index template behavior, refresh settings, shard pressure, and possible rejection retries.</p>
+
+    <p><strong>Runtime:</strong> JVM warmup, filesystem cache, CPU frequency scaling, Docker resource limits, and background laptop work can shift results. Repeat runs and avoid trusting the first number.</p>
+
+    <p><strong>Data:</strong> synthetic logs often miss optional fields, malformed lines, unusually long payloads, and regex worst cases. Use representative samples and include known bad lines.</p>
+
+    <p><strong>Method:</strong> change one variable at a time. Keep input, output, worker count, batch size, heap, and pipeline settings fixed when comparing dissect versus grok or one grok pattern versus another.</p>
   </aside>
 </section>
 
 <section data-terminal>
   <h2>Demo 3: Parse Failures</h2>
-  <pre><code class="language-text">bad log line with no structure</code></pre>
+  <pre><code class="language-conf" data-line-numbers>bad log line with no structure</code></pre>
   <pre><code class="language-conf" data-line-numbers>if "_grokparsefailure" in [tags] {
   mutate { add_field => { "parse_status" => "failed" } }
 } else {
@@ -310,17 +378,53 @@ mutate {
 
 <section>
   <h2>Operating Checklist</h2>
-  <ul>
-    <li>Can you name the most expensive filter?</li>
-    <li>Can malformed events be quarantined?</li>
-    <li>Can you measure events/sec per pipeline?</li>
-    <li>Can you explain queue growth?</li>
-    <li>Can your schema survive arbitrary input?</li>
-  </ul>
-  <blockquote>Do not ask "Can Logstash do this?" Ask "Should this run on every event?"</blockquote>
+  <div class="ops-checklist">
+    <div>
+      <span>01</span>
+      <b>Most expensive filter?</b>
+      <p>Check plugin duration. Replace broad grok with dissect/json where shape is stable. Move expensive enrichment upstream.</p>
+    </div>
+    <div>
+      <span>02</span>
+      <b>Malformed events?</b>
+      <p>Tag failures. Send bad events to quarantine. Sample payloads and alert on failure-rate changes.</p>
+    </div>
+    <div>
+      <span>03</span>
+      <b>Events/sec?</b>
+      <p>Track in/out rates per pipeline. Benchmark with known samples. Compare before and after each filter change.</p>
+    </div>
+    <div>
+      <span>04</span>
+      <b>Queue growth?</b>
+      <p>Check output latency, bulk rejections, and queue push time. Scale or fix the slow stage, not every knob.</p>
+    </div>
+    <div>
+      <span>05</span>
+      <b>Schema safety?</b>
+      <p>Allowlist fields. Nest unknown payloads. Disable dynamic field creation where mapping pressure is risky.</p>
+    </div>
+  </div>
+  <blockquote class="checklist-close">Do not ask "Can Logstash do this?" Ask "Should this run on every event?"</blockquote>
   <aside class="notes">
-    Close by shifting the habit from capability to cost.
-    The safest Logstash pipelines are explicit about parser choice, failure routing, throughput measurement, queue behavior, and schema boundaries.
+    <p>Close by shifting the habit from capability to cost.</p>
+
+    <p><strong>Can you name the most expensive filter?</strong><br>
+    Remediation: use the node stats API and pipeline stats, especially `events.duration_in_millis`, plugin-level duration, worker utilization, and repeated benchmark runs with representative data. Replace broad grok patterns with dissect or JSON when the shape is stable. Move costly enrichment, Ruby code, or external lookups out of the hot path where possible.</p>
+
+    <p><strong>Can malformed events be quarantined?</strong><br>
+    Remediation: tag `_grokparsefailure`, JSON parse failures, missing required fields, and type conversion failures. Route them to a dead-letter index, file, or separate pipeline. Keep a small sample for debugging and alert on failure-rate changes.</p>
+
+    <p><strong>Can you measure events/sec per pipeline?</strong><br>
+    Remediation: expose `events.in`, `events.filtered`, and `events.out` rate for each pipeline. Run a known sample through the pipeline before and after filter changes. Node-wide throughput is useful, but it can hide one slow pipeline behind other healthy ones.</p>
+
+    <p><strong>Can you explain queue growth?</strong><br>
+    Remediation: treat queue growth as events entering faster than they leave. Check output latency, Elasticsearch bulk rejections, network delay, persistent queue settings, queue push duration, and filter duration before changing heap or worker counts.</p>
+
+    <p><strong>Can your schema survive arbitrary input?</strong><br>
+    Remediation: block dynamic field names, use field allowlists or ECS-style mappings, nest risky payloads under controlled keys, and use index templates to prevent mapping explosions.</p>
+
+    <p>The safest Logstash pipelines are explicit about parser choice, failure routing, throughput measurement, queue behavior, and schema boundaries.</p>
   </aside>
 </section>
 

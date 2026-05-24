@@ -478,6 +478,210 @@ body {
   content: "";
 }
 
+.ops-checklist {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  width: min(1220px, 100%);
+  margin: 16px 0 22px;
+}
+
+.ops-checklist > div {
+  position: relative;
+  min-height: 260px;
+  padding: 16px 15px 18px;
+  border: 1px solid rgba(23, 32, 51, .12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(246, 250, 255, .84)),
+    radial-gradient(circle at 100% 0, rgba(29, 95, 209, .1), transparent 46%);
+  box-shadow: 0 18px 38px rgba(22, 47, 90, .12);
+  overflow: hidden;
+}
+
+.ops-checklist > div::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 8px;
+  background: linear-gradient(90deg, var(--teal), var(--blue), var(--coral));
+  opacity: .64;
+}
+
+.ops-checklist span {
+  display: inline-grid;
+  width: 42px;
+  height: 34px;
+  place-items: center;
+  margin-bottom: 16px;
+  border: 1px solid rgba(29, 95, 209, .18);
+  border-radius: 9px;
+  background: rgba(230, 240, 255, .9);
+  color: var(--blue);
+  font-family: "IBM Plex Mono", SFMono-Regular, monospace;
+  font-size: .42em;
+  font-weight: 600;
+}
+
+.ops-checklist b {
+  display: block;
+  min-height: 2.15em;
+  color: var(--ink);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .72em;
+  line-height: 1.12;
+}
+
+.ops-checklist p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: .45em;
+  line-height: 1.22;
+}
+
+.checklist-close {
+  max-width: 1220px !important;
+  margin-top: 8px !important;
+}
+
+.gotcha-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  width: min(1180px, 100%);
+  margin: 14px 0 18px;
+}
+
+.gotcha-grid > div {
+  min-height: 166px;
+  padding: 15px 16px 16px;
+  border: 1px solid rgba(23, 32, 51, .12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(246, 250, 255, .82)),
+    radial-gradient(circle at 100% 0, rgba(196, 79, 52, .1), transparent 44%);
+  box-shadow: 0 16px 34px rgba(22, 47, 90, .11);
+}
+
+.gotcha-grid span {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(196, 79, 52, .1);
+  color: var(--coral);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .34em;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.gotcha-grid b {
+  display: block;
+  min-height: 2.1em;
+  color: var(--ink);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .62em;
+  line-height: 1.12;
+}
+
+.gotcha-grid p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: .44em;
+  line-height: 1.22;
+}
+
+.results-board {
+  display: grid;
+  gap: 10px;
+  width: min(1180px, 100%);
+  margin: 14px 0 14px;
+}
+
+.results-head,
+.results-row {
+  display: grid;
+  grid-template-columns: 1.25fr .8fr .9fr .9fr 1.55fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.results-head {
+  padding: 0 18px;
+  color: var(--muted);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .38em;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.results-row {
+  min-height: 104px;
+  padding: 16px 18px;
+  border: 1px solid rgba(23, 32, 51, .12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(246, 250, 255, .86)),
+    radial-gradient(circle at 100% 0, rgba(14, 124, 116, .08), transparent 42%);
+  box-shadow: 0 16px 34px rgba(22, 47, 90, .11);
+}
+
+.results-row b {
+  color: var(--blue);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .7em;
+}
+
+.results-row span,
+.results-row em {
+  color: var(--ink);
+  font-size: .58em;
+  line-height: 1.22;
+}
+
+.results-row em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.result-blank {
+  display: inline-grid;
+  min-height: 44px;
+  place-items: center;
+  border: 1px dashed rgba(29, 95, 209, .32);
+  border-radius: 9px;
+  background: rgba(230, 240, 255, .62);
+  color: rgba(29, 95, 209, .78) !important;
+  font-family: "IBM Plex Mono", SFMono-Regular, monospace;
+  font-size: .46em !important;
+  font-weight: 600;
+}
+
+.results-formula {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 8px;
+  padding: 10px 14px;
+  border: 1px solid rgba(14, 124, 116, .18);
+  border-radius: 999px;
+  background: rgba(232, 247, 245, .72);
+}
+
+.results-formula b {
+  color: var(--teal);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: .46em;
+}
+
+.results-formula span {
+  color: var(--muted);
+  font-size: .42em;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -777,8 +981,98 @@ kbd {
 
   .two-col,
   .metric-grid,
-  .cost-ladder-wrap {
+  .cost-ladder-wrap,
+  .ops-checklist,
+  .gotcha-grid {
     grid-template-columns: 1fr;
+  }
+
+  .gotcha-grid {
+    gap: 10px;
+    margin: 10px 0 12px;
+  }
+
+  .gotcha-grid > div {
+    min-height: auto;
+    padding: 12px 14px 13px;
+  }
+
+  .gotcha-grid span {
+    margin-bottom: 6px;
+    font-size: .3em;
+  }
+
+  .gotcha-grid b {
+    min-height: 0;
+    font-size: .52em;
+  }
+
+  .gotcha-grid p {
+    margin-top: 6px;
+    font-size: .4em;
+  }
+
+  .results-head {
+    display: none;
+  }
+
+  .results-row {
+    grid-template-columns: 1fr 1fr;
+    min-height: auto;
+    padding: 12px 14px;
+  }
+
+  .results-row b,
+  .results-row em {
+    grid-column: 1 / -1;
+  }
+
+  .results-row b {
+    font-size: .58em;
+  }
+
+  .results-row span,
+  .results-row em {
+    font-size: .45em;
+  }
+
+  .result-blank {
+    min-height: 34px;
+    font-size: .38em !important;
+  }
+
+  .results-formula {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    border-radius: 12px;
+  }
+
+  .ops-checklist {
+    gap: 10px;
+    margin: 10px 0 14px;
+  }
+
+  .ops-checklist > div {
+    min-height: auto;
+    padding: 12px 14px 14px;
+  }
+
+  .ops-checklist span {
+    width: 34px;
+    height: 28px;
+    margin-bottom: 8px;
+    font-size: .34em;
+  }
+
+  .ops-checklist b {
+    min-height: 0;
+    font-size: .56em;
+  }
+
+  .ops-checklist p {
+    margin-top: 6px;
+    font-size: .44em;
   }
 
   .cost-axis {
